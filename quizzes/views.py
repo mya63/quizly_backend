@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import generics
 from .models import Quiz, Question
 from .serializers import QuizSerializer
+from .youtube import download_audio
 
 
 class QuizListCreateView(generics.ListCreateAPIView):
@@ -11,6 +12,12 @@ class QuizListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         user = get_user_model().objects.first()
         quiz = serializer.save(user=user)
+
+        audio_path = download_audio(quiz.youtube_url)
+        
+        print("Audio gespeichert:", audio_path)
+
+
 
         # 🔥 TEST: Eine Dummy-Frage erstellen
         Question.objects.create(
