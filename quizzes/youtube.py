@@ -1,4 +1,5 @@
 import os
+import time
 import yt_dlp
 
 
@@ -17,8 +18,9 @@ def download_audio(url):
 
     os.makedirs("media", exist_ok=True)
 
+    unique_name = f"{video_id}_{int(time.time())}"
     clean_url = f"https://www.youtube.com/watch?v={video_id}"
-    output_template = f"media/{video_id}.%(ext)s"
+    output_template = f"media/{unique_name}.%(ext)s"
 
     ydl_opts = {
         "format": "bestaudio/best",
@@ -37,4 +39,4 @@ def download_audio(url):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([clean_url])
 
-    return f"media/{video_id}.mp3"
+    return f"media/{unique_name}.mp3"
