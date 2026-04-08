@@ -59,7 +59,7 @@ def validate_quiz_logic(data):
     return data
 
 
-# MYA: Neu - Gemini aufrufen und Ergebnis validieren
+
 def generate_quiz_from_transcript(transcript):
     client = genai.Client()
     prompt = build_quiz_prompt(transcript)
@@ -74,7 +74,18 @@ def generate_quiz_from_transcript(transcript):
     )
 
     try:
-        quiz_data = QuizSchema.model_validate_json(response.text).model_dump()
+        raw_data = response.text
+        quiz_data = QuizSchema.model_validate_json(raw_data).model_dump()
         return validate_quiz_logic(quiz_data)
-    except ValidationError as error:
-        raise ValueError(f"Gemini JSON Fehler: {error}") from error
+
+    except ValidationError:
+        import json
+
+        parsed_data = json.loads(response.text)
+
+        # MYA: Neu - falls Beschreibung zu lang ist, kürzen
+        if "description" in parsed_data:
+            parsed_data["description"] = parsed_data["description"][:150]
+
+        quiz_data = QuizSchema(**parsed_data).model_dump()
+        return validate_quiz_logic(quiz_data)

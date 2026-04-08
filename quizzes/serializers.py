@@ -16,6 +16,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         ]
 
 
+
 class QuizSerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
 
@@ -30,4 +31,11 @@ class QuizSerializer(serializers.ModelSerializer):
             "created_at",
             "questions",
         ]
-        read_only_fields = ["id", "user", "created_at", "questions"]
+        read_only_fields = [
+            "id",
+            "user",
+            "created_at",
+            "questions",
+            "title",         
+            "description",   
+        ]
