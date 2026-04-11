@@ -12,7 +12,7 @@ class QuizListCreateView(generics.ListCreateAPIView):
     serializer_class = QuizSerializer
 
     def perform_create(self, serializer):
-        user = None
+        user = request.user
         quiz = serializer.save(user=user)
 
         audio_path = download_audio(quiz.youtube_url)
