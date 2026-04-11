@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 
 
+
 class Quiz(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -12,6 +13,7 @@ class Quiz(models.Model):
     description = models.TextField(blank=True)
     youtube_url = models.URLField()
     created_at = models.DateTimeField(auto_now_add=True)
+    transcript = models.TextField(blank=True)
 
     def __str__(self):
         return self.title

@@ -27,6 +27,7 @@ class QuizSerializer(serializers.ModelSerializer):
             "user",
             "title",
             "description",
+            "transcript",
             "youtube_url",
             "created_at",
             "questions",
@@ -36,6 +37,7 @@ class QuizSerializer(serializers.ModelSerializer):
             "user",
             "created_at",
             "questions",
-            "title",         
-            "description",   
+            "title",
+            "description",
+            "transcript",
         ]
