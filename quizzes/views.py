@@ -1,60 +1,89 @@
-from django.contrib.auth import get_user_model
-from rest_framework import generics
+from django.shortcuts import get_object_or_404
+from rest_framework import generics, status
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from .gemini_service import (
+    GeminiQuizGenerationError,
+    generate_quiz_from_transcript,
+)
 from .models import Quiz, Question
 from .serializers import QuizSerializer
-from .youtube import download_audio
 from .whisper_service import transcribe_audio
-from .gemini_service import generate_quiz_from_transcript
+from .youtube import download_audio
 
 
 class QuizListCreateView(generics.ListCreateAPIView):
-    queryset = Quiz.objects.all().order_by("-created_at")
     serializer_class = QuizSerializer
+    permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        user = request.user
-        quiz = serializer.save(user=user)
+    def get_queryset(self):
+        return Quiz.objects.filter(user=self.request.user).order_by("-created_at")
 
-        audio_path = download_audio(quiz.youtube_url)
-        print("STEP 1: Audio gespeichert:", audio_path)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        print("STEP 2: Whisper startet jetzt")
-        transcript = transcribe_audio(audio_path)
-
-        print("STEP 3: Whisper fertig")
-        print("Transcript:", transcript[:500])
-
-        # GEÄNDERT: Transcript jetzt im neuen Feld speichern
-        quiz.transcript = transcript
-        quiz.save()
-
-        print("STEP 4: Transcript im Quiz gespeichert")
-
-        # WICHTIG: quiz_data muss VOR der Nutzung erzeugt werden
-        print("STEP 5: Gemini startet jetzt")
-        quiz_data = generate_quiz_from_transcript(transcript)
-
-        print("STEP 6: Gemini fertig")
-        print("Quiz Titel:", quiz_data["title"])
-
-        # GEÄNDERT: description erst NACH Gemini setzen
-        quiz.title = quiz_data["title"]
-        quiz.description = quiz_data["description"]
-        quiz.save()
-
-        for item in quiz_data["questions"]:
-            Question.objects.create(
-                quiz=quiz,
-                question_title=item["question_title"],
-                option_a=item["question_options"][0],
-                option_b=item["question_options"][1],
-                option_c=item["question_options"][2],
-                option_d=item["question_options"][3],
-                answer=item["answer"],
+        try:
+            self.perform_create(serializer)
+        except GeminiQuizGenerationError as error:
+            return Response(
+                {"detail": str(error)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except Exception:
+            return Response(
+                {"detail": "Quiz konnte nicht erstellt werden."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        print("STEP 7: Fragen gespeichert")
-                
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            self.get_serializer(serializer.instance).data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
+
+    def perform_create(self, serializer):
+        quiz = serializer.save(user=self.request.user)
+
+        try:
+            audio_path = download_audio(quiz.youtube_url)
+            transcript = transcribe_audio(audio_path)
+
+            quiz.transcript = transcript
+            quiz.save()
+
+            quiz_data = generate_quiz_from_transcript(transcript)
+
+            quiz.title = quiz_data["title"]
+            quiz.description = quiz_data["description"]
+            quiz.save()
+
+            for item in quiz_data["questions"]:
+                Question.objects.create(
+                    quiz=quiz,
+                    question_title=item["question_title"],
+                    option_a=item["question_options"][0],
+                    option_b=item["question_options"][1],
+                    option_c=item["question_options"][2],
+                    option_d=item["question_options"][3],
+                    answer=item["answer"],
+                )
+        except Exception:
+            quiz.delete()
+            raise
+
+
 class QuizDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Quiz.objects.all()
     serializer_class = QuizSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        quiz = get_object_or_404(Quiz, pk=self.kwargs["pk"])
+
+        if quiz.user != self.request.user:
+            raise PermissionDenied("Quiz gehört nicht dem Benutzer.")
+
+        return quiz

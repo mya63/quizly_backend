@@ -6,6 +6,10 @@ from pydantic import BaseModel, Field, ValidationError
 from google import genai
 
 
+class GeminiQuizGenerationError(Exception):
+    """Fehler bei der Quiz-Erstellung über Gemini."""
+
+
 class QuizQuestionSchema(BaseModel):
     question_title: str = Field(min_length=5)
     question_options: list[str] = Field(min_length=4, max_length=4)
@@ -48,30 +52,96 @@ def validate_quiz_logic(data):
         options = question["question_options"]
 
         if len(options) != 4:
-            raise ValueError("Eine Frage hat nicht genau 4 Optionen.")
+            raise GeminiQuizGenerationError("Eine Frage hat nicht genau 4 Optionen.")
         if len(set(options)) != 4:
-            raise ValueError("Eine Frage enthält doppelte Optionen.")
+            raise GeminiQuizGenerationError(
+                "Eine Frage enthält doppelte Optionen."
+            )
         if question["answer"] not in options:
-            raise ValueError("Antwort ist nicht in den Optionen enthalten.")
+            raise GeminiQuizGenerationError(
+                "Antwort ist nicht in den Optionen enthalten."
+            )
 
     return data
 
 
+def get_retry_wait_time(attempt):
+    return 5 * (attempt + 1)
+
+def build_dummy_quiz():
+    return {
+        "title": "Dummy Quiz",
+        "description": "Dieses Quiz wurde als Fallback ohne Gemini erstellt.",
+        "questions": [
+            {
+                "question_title": "What is 2 + 2?",
+                "question_options": ["3", "4", "5", "6"],
+                "answer": "4",
+            },
+            {
+                "question_title": "What color is the sky on a clear day?",
+                "question_options": ["Blue", "Green", "Red", "Yellow"],
+                "answer": "Blue",
+            },
+            {
+                "question_title": "Which animal barks?",
+                "question_options": ["Cat", "Dog", "Fish", "Bird"],
+                "answer": "Dog",
+            },
+            {
+                "question_title": "Which season is usually the coldest?",
+                "question_options": ["Summer", "Winter", "Spring", "Autumn"],
+                "answer": "Winter",
+            },
+            {
+                "question_title": "How many days are in a week?",
+                "question_options": ["5", "6", "7", "8"],
+                "answer": "7",
+            },
+            {
+                "question_title": "Which one is a fruit?",
+                "question_options": ["Carrot", "Potato", "Apple", "Onion"],
+                "answer": "Apple",
+            },
+            {
+                "question_title": "What do bees make?",
+                "question_options": ["Milk", "Honey", "Bread", "Juice"],
+                "answer": "Honey",
+            },
+            {
+                "question_title": "Which planet do we live on?",
+                "question_options": ["Mars", "Venus", "Earth", "Jupiter"],
+                "answer": "Earth",
+            },
+            {
+                "question_title": "How many months are in a year?",
+                "question_options": ["10", "11", "12", "13"],
+                "answer": "12",
+            },
+            {
+                "question_title": "Which one can fly?",
+                "question_options": ["Stone", "Chair", "Airplane", "Table"],
+                "answer": "Airplane",
+            },
+        ],
+    }
+
+
 def generate_quiz_from_transcript(transcript):
     api_key = os.getenv("GEMINI_API_KEY")
+    print("KEY:", api_key[:10] if api_key else "KEIN KEY")
 
     if not api_key:
-        raise ValueError("GEMINI_API_KEY ist nicht gesetzt.")
+        raise GeminiQuizGenerationError("GEMINI_API_KEY ist nicht gesetzt.")
 
     client = genai.Client(api_key=api_key)
     prompt = build_quiz_prompt(transcript)
-
     last_error = None
 
-    for attempt in range(3):
+    for attempt in range(5):
         try:
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.0-flash",
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",
@@ -96,9 +166,10 @@ def generate_quiz_from_transcript(transcript):
             last_error = error
             print(f"Gemini Versuch {attempt + 1} fehlgeschlagen: {error}")
 
-            if attempt < 2:
-                time.sleep(3)
+            if attempt < 4:
+                wait_time = get_retry_wait_time(attempt)
+                print(f"Warte {wait_time} Sekunden bis zum nächsten Versuch...")
+                time.sleep(wait_time)
 
-    raise ValueError(
-        f"Gemini konnte nach 3 Versuchen nicht erfolgreich antworten: {last_error}"
-    )
+    print("Gemini nicht verfügbar, Dummy-Quiz wird verwendet.")
+    return build_dummy_quiz()
