@@ -15,13 +15,26 @@ from .youtube import download_audio
 
 
 class QuizListCreateView(generics.ListCreateAPIView):
+    """
+    Handles listing and creating quizzes for the authenticated user.
+    """
+
     serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """
+        Returns all quizzes of the authenticated user ordered by creation date.
+        """
         return Quiz.objects.filter(user=self.request.user).order_by("-created_at")
 
     def create(self, request, *args, **kwargs):
+        """
+        Creates a new quiz from a YouTube URL.
+
+        Validates the input, processes the video, generates quiz data,
+        and returns the saved quiz. If Gemini fails, a 503 response is returned.
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -46,6 +59,13 @@ class QuizListCreateView(generics.ListCreateAPIView):
         )
 
     def perform_create(self, serializer):
+        """
+        Saves the quiz, downloads the audio, transcribes it,
+        generates quiz data, and stores the related questions.
+
+        If any step fails, the created quiz is deleted again
+        to avoid incomplete database entries.
+        """
         quiz = serializer.save(user=self.request.user)
 
         try:
@@ -77,10 +97,19 @@ class QuizListCreateView(generics.ListCreateAPIView):
 
 
 class QuizDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Handles retrieving, updating, and deleting a single quiz.
+    Only the owner of the quiz is allowed to access it.
+    """
+
     serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
+        """
+        Returns the requested quiz if it belongs to the authenticated user.
+        Raises 403 if the quiz belongs to another user.
+        """
         quiz = get_object_or_404(Quiz, pk=self.kwargs["pk"])
 
         if quiz.user != self.request.user:

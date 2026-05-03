@@ -10,7 +10,15 @@ from .serializers import RegisterSerializer
 
 
 def set_auth_cookies(response, access_token, refresh_token=None):
-    # NEU: access_token Cookie setzen
+    """
+    Stores the access token and optional refresh token
+    in HTTP-only cookies.
+
+    Args:
+        response (Response): DRF response object.
+        access_token (str): JWT access token.
+        refresh_token (str | None): JWT refresh token.
+    """
     response.set_cookie(
         settings.AUTH_COOKIE_ACCESS,
         str(access_token),
@@ -19,7 +27,6 @@ def set_auth_cookies(response, access_token, refresh_token=None):
         samesite=settings.AUTH_COOKIE_SAMESITE,
     )
 
-    # NEU: refresh_token Cookie setzen, wenn vorhanden
     if refresh_token is not None:
         response.set_cookie(
             settings.AUTH_COOKIE_REFRESH,
@@ -31,15 +38,30 @@ def set_auth_cookies(response, access_token, refresh_token=None):
 
 
 def clear_auth_cookies(response):
-    # NEU: beide Cookies löschen
+    """
+    Deletes authentication cookies from the response.
+
+    Args:
+        response (Response): DRF response object.
+    """
     response.delete_cookie(settings.AUTH_COOKIE_ACCESS)
     response.delete_cookie(settings.AUTH_COOKIE_REFRESH)
 
 
 class RegisterView(APIView):
+    """
+    Handles user registration.
+    """
+
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """
+        Validates the registration data and creates a new user.
+
+        Returns:
+            Response: Success or validation error response.
+        """
         serializer = RegisterSerializer(data=request.data)
 
         if not serializer.is_valid():
@@ -54,9 +76,22 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
+    """
+    Handles user login and sets JWT cookies.
+    """
+
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """
+        Authenticates the user with username and password.
+
+        On success, access and refresh tokens are stored
+        in HTTP-only cookies.
+
+        Returns:
+            Response: Login success or invalid credentials response.
+        """
         username = request.data.get("username")
         password = request.data.get("password")
 
@@ -88,9 +123,20 @@ class LoginView(APIView):
 
 
 class LogoutView(APIView):
+    """
+    Handles user logout and blacklists the refresh token.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        """
+        Logs the authenticated user out, blacklists the refresh token,
+        and removes authentication cookies.
+
+        Returns:
+            Response: Logout success or token error response.
+        """
         refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
 
         if not refresh_token:
@@ -125,9 +171,19 @@ class LogoutView(APIView):
 
 
 class TokenRefreshCookieView(APIView):
+    """
+    Refreshes the access token using the refresh token from cookies.
+    """
+
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """
+        Creates a new access token from the refresh token cookie.
+
+        Returns:
+            Response: Token refresh success or error response.
+        """
         refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
 
         if not refresh_token:

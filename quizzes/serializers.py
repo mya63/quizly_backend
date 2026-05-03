@@ -1,8 +1,16 @@
 from rest_framework import serializers
-from .models import Quiz, Question
+
+from .models import Question, Quiz
 
 
 class QuestionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for quiz questions.
+
+    Combines the four stored answer options into one list
+    for the API response format.
+    """
+
     question_options = serializers.SerializerMethodField()
 
     class Meta:
@@ -15,6 +23,15 @@ class QuestionSerializer(serializers.ModelSerializer):
         ]
 
     def get_question_options(self, obj):
+        """
+        Returns the four stored answer options as a list.
+
+        Args:
+            obj (Question): Question instance.
+
+        Returns:
+            list[str]: List of answer options.
+        """
         return [
             obj.option_a,
             obj.option_b,
@@ -24,12 +41,15 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 
 class QuizSerializer(serializers.ModelSerializer):
+    """
+    Serializer for quizzes.
+
+    Accepts youtube_url as input and returns video_url
+    in the documented response format.
+    """
+
     questions = QuestionSerializer(many=True, read_only=True)
-
-    # 👉 INPUT Feld
     youtube_url = serializers.URLField(write_only=True)
-
-    # 👉 OUTPUT Feld (Doku-konform)
     video_url = serializers.CharField(source="youtube_url", read_only=True)
 
     class Meta:
@@ -40,11 +60,10 @@ class QuizSerializer(serializers.ModelSerializer):
             "description",
             "created_at",
             "updated_at",
-            "youtube_url",   # 👈 wichtig für POST
-            "video_url",     # 👈 für Response
+            "youtube_url",
+            "video_url",
             "questions",
         ]
-
         read_only_fields = [
             "id",
             "title",

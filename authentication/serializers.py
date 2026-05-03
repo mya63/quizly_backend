@@ -3,13 +3,13 @@ from rest_framework import serializers
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    confirmed_password = serializers.CharField(write_only=True)
+    """
+    Serializer for user registration.
 
-    from django.contrib.auth.models import User
-from rest_framework import serializers
+    Adds password confirmation validation and creates a new user
+    with Django's built-in create_user method.
+    """
 
-
-class RegisterSerializer(serializers.ModelSerializer):
     confirmed_password = serializers.CharField(write_only=True)
 
     class Meta:
@@ -21,6 +21,18 @@ class RegisterSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, attrs):
+        """
+        Validates that password and confirmed_password match.
+
+        Args:
+            attrs (dict): Incoming serializer data.
+
+        Returns:
+            dict: Validated data.
+
+        Raises:
+            serializers.ValidationError: If passwords do not match.
+        """
         if attrs["password"] != attrs["confirmed_password"]:
             raise serializers.ValidationError(
                 {"confirmed_password": "Passwords do not match."}
@@ -28,5 +40,14 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        """
+        Creates a new user after removing the confirmation field.
+
+        Args:
+            validated_data (dict): Validated serializer data.
+
+        Returns:
+            User: Newly created user instance.
+        """
         validated_data.pop("confirmed_password")
         return User.objects.create_user(**validated_data)

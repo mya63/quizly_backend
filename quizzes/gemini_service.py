@@ -2,27 +2,46 @@ import json
 import os
 import time
 
-from pydantic import BaseModel, Field, ValidationError
 from google import genai
+from pydantic import BaseModel, Field, ValidationError
 
 
 class GeminiQuizGenerationError(Exception):
-    """Fehler bei der Quiz-Erstellung über Gemini."""
+    """
+    Raised when quiz generation with Gemini fails.
+    """
 
 
 class QuizQuestionSchema(BaseModel):
+    """
+    Validation schema for a single quiz question.
+    """
+
     question_title: str = Field(min_length=5)
     question_options: list[str] = Field(min_length=4, max_length=4)
     answer: str = Field(min_length=1)
 
 
 class QuizSchema(BaseModel):
+    """
+    Validation schema for a complete quiz.
+    """
+
     title: str = Field(min_length=3, max_length=120)
     description: str = Field(min_length=10, max_length=150)
     questions: list[QuizQuestionSchema] = Field(min_length=10, max_length=10)
 
 
 def build_quiz_prompt(transcript):
+    """
+    Builds the Gemini prompt from a transcript.
+
+    Args:
+        transcript (str): The transcribed audio text.
+
+    Returns:
+        str: Prompt text for Gemini.
+    """
     return f"""
 Generate a quiz from this transcript.
 
@@ -48,6 +67,21 @@ Transcript:
 
 
 def validate_quiz_logic(data):
+    """
+    Validates quiz logic after schema validation.
+
+    Checks that each question has exactly four unique options
+    and that the answer is included in the options.
+
+    Args:
+        data (dict): Generated quiz data.
+
+    Returns:
+        dict: Validated quiz data.
+
+    Raises:
+        GeminiQuizGenerationError: If logical validation fails.
+    """
     for question in data["questions"]:
         options = question["question_options"]
 
@@ -66,9 +100,25 @@ def validate_quiz_logic(data):
 
 
 def get_retry_wait_time(attempt):
+    """
+    Returns the retry wait time for the current Gemini attempt.
+
+    Args:
+        attempt (int): Current retry attempt.
+
+    Returns:
+        int: Waiting time in seconds.
+    """
     return 5 * (attempt + 1)
 
+
 def build_dummy_quiz():
+    """
+    Returns a fallback quiz if Gemini is unavailable.
+
+    Returns:
+        dict: Static quiz data for frontend and backend testing.
+    """
     return {
         "title": "Dummy Quiz",
         "description": "Dieses Quiz wurde als Fallback ohne Gemini erstellt.",
@@ -128,6 +178,21 @@ def build_dummy_quiz():
 
 
 def generate_quiz_from_transcript(transcript):
+    """
+    Generates quiz data from a transcript using Gemini.
+
+    If Gemini is unavailable or quota is exceeded, a dummy quiz is returned
+    as a fallback for testing purposes.
+
+    Args:
+        transcript (str): Transcribed YouTube audio text.
+
+    Returns:
+        dict: Quiz data with title, description, and questions.
+
+    Raises:
+        GeminiQuizGenerationError: If the API key is missing.
+    """
     api_key = os.getenv("GEMINI_API_KEY")
     print("KEY:", api_key[:10] if api_key else "KEIN KEY")
 
@@ -136,7 +201,6 @@ def generate_quiz_from_transcript(transcript):
 
     client = genai.Client(api_key=api_key)
     prompt = build_quiz_prompt(transcript)
-    last_error = None
 
     for attempt in range(5):
         try:
@@ -163,7 +227,6 @@ def generate_quiz_from_transcript(transcript):
                 return validate_quiz_logic(quiz_data)
 
         except Exception as error:
-            last_error = error
             print(f"Gemini Versuch {attempt + 1} fehlgeschlagen: {error}")
 
             if attempt < 4:
