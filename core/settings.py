@@ -19,8 +19,11 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / "subdir".
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# NEU: .env korrekt laden
 load_dotenv(BASE_DIR / ".env", override=True)
-
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+# NEU: Gemini Key holen
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-&(dja112f62sk=afl*!s+j+wlvpdba7k3cs90)5la^4a5a=pk8"
 

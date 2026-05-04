@@ -42,12 +42,12 @@ class QuizListCreateView(generics.ListCreateAPIView):
             self.perform_create(serializer)
         except GeminiQuizGenerationError as error:
             return Response(
-                {"detail": str(error)},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-        except Exception:
+            {"detail": str(error)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+        except Exception as error:
             return Response(
-                {"detail": "Quiz konnte nicht erstellt werden."},
+                {"detail": str(error)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

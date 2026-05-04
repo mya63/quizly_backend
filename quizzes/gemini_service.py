@@ -1,10 +1,9 @@
 import json
-import os
 import time
 
+from django.conf import settings
 from google import genai
 from pydantic import BaseModel, Field, ValidationError
-
 
 class GeminiQuizGenerationError(Exception):
     """
@@ -178,29 +177,16 @@ def build_dummy_quiz():
 
 
 def generate_quiz_from_transcript(transcript):
-    """
-    Generates quiz data from a transcript using Gemini.
+    api_key = settings.GEMINI_API_KEY
 
-    If Gemini is unavailable or quota is exceeded, a dummy quiz is returned
-    as a fallback for testing purposes.
-
-    Args:
-        transcript (str): Transcribed YouTube audio text.
-
-    Returns:
-        dict: Quiz data with title, description, and questions.
-
-    Raises:
-        GeminiQuizGenerationError: If the API key is missing.
-    """
-    api_key = os.getenv("GEMINI_API_KEY")
-    print("KEY:", api_key[:10] if api_key else "KEIN KEY")
+    
 
     if not api_key:
         raise GeminiQuizGenerationError("GEMINI_API_KEY ist nicht gesetzt.")
 
     client = genai.Client(api_key=api_key)
     prompt = build_quiz_prompt(transcript)
+
 
     for attempt in range(5):
         try:
@@ -236,3 +222,5 @@ def generate_quiz_from_transcript(transcript):
 
     print("Gemini nicht verfügbar, Dummy-Quiz wird verwendet.")
     return build_dummy_quiz()
+
+
