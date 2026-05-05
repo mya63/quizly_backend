@@ -3,6 +3,7 @@ from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .gemini_service import (
     GeminiQuizGenerationError,
@@ -116,3 +117,15 @@ class QuizDetailView(generics.RetrieveUpdateDestroyAPIView):
             raise PermissionDenied("Quiz gehört nicht dem Benutzer.")
 
         return quiz
+    
+class LatestQuizView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        quiz = Quiz.objects.filter(user=request.user).order_by("-created_at").first()
+
+        if not quiz:
+            return Response({"detail": "No quiz found"}, status=404)
+
+        serializer = QuizSerializer(quiz)
+        return Response(serializer.data)

@@ -49,7 +49,7 @@ class QuizSerializer(serializers.ModelSerializer):
     """
 
     questions = QuestionSerializer(many=True, read_only=True)
-    youtube_url = serializers.URLField(write_only=True)
+    youtube_url = serializers.URLField(required=True)
     video_url = serializers.CharField(source="youtube_url", read_only=True)
 
     class Meta:
