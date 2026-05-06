@@ -70,7 +70,7 @@ class QuizListCreateView(generics.ListCreateAPIView):
         quiz = serializer.save(user=self.request.user)
 
         try:
-            audio_path = download_audio(quiz.youtube_url)
+            audio_path = download_audio(quiz.url)
             transcript = transcribe_audio(audio_path)
 
             quiz.transcript = transcript

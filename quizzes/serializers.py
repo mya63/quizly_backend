@@ -44,18 +44,12 @@ class QuizSerializer(serializers.ModelSerializer):
     """
     Serializer for quizzes.
 
-    Accepts video_url (API docs),
-    fake_video_url (academy frontend),
-    and youtube_url (legacy frontend).
-
-    Returns video_url in the documented response format.
+    Accepts url from the frontend request.
+    Returns video_url in the API response.
     """
 
     questions = QuestionSerializer(many=True, read_only=True)
-
-    youtube_url = serializers.URLField(required=False, write_only=True)
-    fake_video_url = serializers.URLField(required=False, write_only=True)
-    video_url = serializers.URLField(required=False)
+    video_url = serializers.URLField(source="url", read_only=True)
 
     class Meta:
         model = Quiz
@@ -65,8 +59,7 @@ class QuizSerializer(serializers.ModelSerializer):
             "description",
             "created_at",
             "updated_at",
-            "youtube_url",
-            "fake_video_url",
+            "url",
             "video_url",
             "questions",
         ]
@@ -77,31 +70,6 @@ class QuizSerializer(serializers.ModelSerializer):
             "description",
             "created_at",
             "updated_at",
+            "video_url",
             "questions",
         ]
-
-    def validate(self, attrs):
-        youtube_url = attrs.pop("youtube_url", None)
-        fake_video_url = attrs.pop("fake_video_url", None)
-        video_url = attrs.get("video_url")
-
-        final_url = (
-            video_url
-            or fake_video_url
-            or youtube_url
-        )
-
-        if not final_url:
-            raise serializers.ValidationError({
-                "video_url": "This field is required."
-            })
-
-        attrs["youtube_url"] = final_url
-        attrs["video_url"] = final_url
-
-        return attrs
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data["video_url"] = instance.youtube_url
-        return data
