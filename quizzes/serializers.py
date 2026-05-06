@@ -44,12 +44,13 @@ class QuizSerializer(serializers.ModelSerializer):
     """
     Serializer for quizzes.
 
-    Accepts youtube_url as input and returns video_url
-    in the documented response format.
+    Accepts both youtube_url and fake_video_url as input.
+    Returns video_url in the documented response format.
     """
 
     questions = QuestionSerializer(many=True, read_only=True)
-    youtube_url = serializers.URLField(required=True)
+    youtube_url = serializers.URLField(required=False)
+    fake_video_url = serializers.URLField(write_only=True, required=False)
     video_url = serializers.CharField(source="youtube_url", read_only=True)
 
     class Meta:
@@ -61,6 +62,7 @@ class QuizSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "youtube_url",
+            "fake_video_url",
             "video_url",
             "questions",
         ]
@@ -73,3 +75,17 @@ class QuizSerializer(serializers.ModelSerializer):
             "video_url",
             "questions",
         ]
+
+    def validate(self, attrs):
+        fake_video_url = attrs.pop("fake_video_url", None)
+        youtube_url = attrs.get("youtube_url")
+
+        if not youtube_url and fake_video_url:
+            attrs["youtube_url"] = fake_video_url
+
+        if not attrs.get("youtube_url"):
+            raise serializers.ValidationError({
+                "fake_video_url": "This field is required."
+            })
+
+        return attrs
