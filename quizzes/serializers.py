@@ -2,6 +2,8 @@ from rest_framework import serializers
 
 from .models import Question, Quiz
 
+from .youtube_url import normalize_youtube_url
+
 
 class QuestionSerializer(serializers.ModelSerializer):
     """
@@ -66,10 +68,21 @@ class QuizSerializer(serializers.ModelSerializer):
 
         read_only_fields = [
             "id",
-            "title",
-            "description",
             "created_at",
             "updated_at",
             "video_url",
             "questions",
         ]
+
+        extra_kwargs = {
+            "title": {"required": False},
+            "description": {"required": False},
+        }
+    
+    def validate_url(self, value):
+        normalized_url = normalize_youtube_url(value)
+
+        if not normalized_url:
+            raise serializers.ValidationError("Invalid YouTube URL.")
+
+        return normalized_url
